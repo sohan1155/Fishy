@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Fishy — Player Ledger</title>
+<style>
+  :root {
+    --bg: #0b1524;
+    --surface: #101f33;
+    --surface-2: #16283f;
+    --line: #223a56;
+    --accent: #ff8a3d;
+    --accent-dim: #b35a20;
+    --teal: #2dd4bf;
+    --text: #eef3f8;
+    --muted: #7e93ab;
+    --danger: #ff5c5c;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* nautical hairline wave, purely decorative, restrained */
+  .wave-rule {
+    height: 6px;
+    width: 100%;
+    background-image: radial-gradient(circle at 6px 0px, transparent 5px, var(--accent) 5.5px, var(--accent) 6px, transparent 6.5px);
+    background-size: 12px 12px;
+    background-repeat: repeat-x;
+    opacity: 0.55;
+  }
+
+  header {
+    padding: 28px 24px 18px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #0e1c30, var(--bg));
+  }
+  .eyebrow {
+    color: var(--teal);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    margin: 20px 24px 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .stat {
+    background: var(--surface);
+    padding: 14px 16px;
+  }
+  .stat .num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .stat .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin: 20px 24px 12px;
+  }
+  input#search {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  input#search:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent-dim); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #export-btn {
+    background: linear-gradient(180deg, var(--accent), #d9650f);
+    border: none;
+    color: #1a0e00;
+  }
+  #refresh-btn::before { content: "⟳ "; }
+
+  .table-wrap {
+    margin: 0 24px 32px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--surface);
+  }
+  table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left;
+    padding: 12px 14px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+  }
+  thead th:hover { color: var(--text); }
+  thead th.active { color: var(--accent); }
+  tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,138,61,0.06); }
+  .wallet {
+    color: var(--teal);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wallet.none { color: var(--muted); font-style: italic; }
+  .copy-wallet-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    padding: 3px 7px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-left: 6px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .copy-wallet-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+  .copy-wallet-btn.copied { color: var(--teal); border-color: var(--teal); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge.locked { background: rgba(255,92,92,0.15); color: var(--danger); }
+  .badge.open { background: rgba(45,212,191,0.15); color: var(--teal); }
+
+  .empty, .loading {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  footer {
+    padding: 20px 24px 40px;
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+  }
+  @media (max-width: 480px) {
+    header, .stats, .controls, .table-wrap, footer { margin-left: 12px; margin-right: 12px; }
+    .swipe-hint { display: block; }
+  }
+  .swipe-hint {
+    display: none;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    margin: -4px 24px 10px;
+  }
+</style>
+</head>
+<body>
+
+<div id="lock-screen" style="
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+">
+  <div style="font-size: 15px; color: var(--muted); margin-bottom: 14px; letter-spacing: 0.08em; text-transform: uppercase;">🔒 Fishy Player Ledger</div>
+  <input id="lock-password" type="password" placeholder="Enter password" style="
+      background: var(--surface); border: 1px solid var(--line); color: var(--text);
+      padding: 12px 16px; border-radius: 10px; font-size: 15px; width: 240px; text-align: center;
+      margin-bottom: 10px;
+  ">
+  <button id="lock-submit" style="
+      background: linear-gradient(180deg, var(--accent), #d9650f); border: none; color: #1a0e00;
+      padding: 10px 24px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer;
+  ">Unlock</button>
+  <div id="lock-error" style="color: var(--danger); font-size: 12px; margin-top: 10px; height: 14px;"></div>
+</div>
+
+<div id="dashboard-content" style="display: none;">
+
+<script>
+  // Simple client-side gate. Not real security — anyone who reads the
+  // page source can find this password. It only stops casual/accidental
+  // access, not a determined visitor. See note in chat for real protection.
+  const DASHBOARD_PASSWORD = "changeme123";
+
+  function unlock() {
+    const entered = document.getElementById('lock-password').value;
+    if (entered === DASHBOARD_PASSWORD) {
+      document.getElementById('lock-screen').style.display = 'none';
+      document.getElementById('dashboard-content').style.display = 'block';
+      sessionStorage.setItem('fishy_admin_unlocked', '1');
+    } else {
+      document.getElementById('lock-error').textContent = 'Wrong password';
+    }
+  }
+  document.getElementById('lock-submit').addEventListener('click', unlock);
+  document.getElementById('lock-password').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') unlock();
+  });
+  if (sessionStorage.getItem('fishy_admin_unlocked') === '1') {
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('dashboard-content').style.display = 'block';
+  }
+</script>
+
+<header>
+  <div class="eyebrow">Fishy · Internal Tool</div>
+  <h1>Player Ledger</h1>
+  <div class="sub">TON wallets, play time, streaks, and referral activity — synced live from Firebase.</div>
+</header>
+<div class="wave-rule"></div>
+
+<div class="stats" id="stats">
+  <div class="stat"><div class="num" id="stat-users">—</div><div class="label">Players</div></div>
+  <div class="stat"><div class="num" id="stat-wallets">—</div><div class="label">Wallets connected</div></div>
+  <div class="stat"><div class="num" id="stat-points">—</div><div class="label">Total play minutes</div></div>
+  <div class="stat"><div class="num" id="stat-fishy">—</div><div class="label">Total Fishy</div></div>
+  <div class="stat"><div class="num" id="stat-referrals">—</div><div class="label">Total invites</div></div>
+</div>
+
+<div class="controls">
+  <input id="search" type="text" placeholder="Search by Telegram ID or wallet address…">
+  <button id="refresh-btn">Refresh</button>
+  <button id="export-btn">Export CSV</button>
+</div>
+
+<div class="swipe-hint">← swipe the table to see more columns →</div>
+<div class="table-wrap">
+  <table id="players-table">
+    <thead>
+      <tr>
+        <th data-key="userId">Telegram ID</th>
+        <th data-key="walletAddress">TON Wallet</th>
+        <th data-key="gameCoins">Game Coins</th>
+        <th data-key="playSeconds">Play Time</th>
+        <th data-key="streakCount">Streak</th>
+        <th data-key="fishyCoins">Fishy</th>
+        <th data-key="referralCount">Invites</th>
+        <th data-key="referredBy">Invited By</th>
+        <th data-key="castStatus">Play Status</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+      <tr><td colspan="9" class="loading">Loading players…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<footer>Fishy internal ledger · not linked from the game · data reads directly from Firebase Realtime Database</footer>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+  import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBFrAnpFptQn4dabu76kSNgtUl-OsXODkQ",
+    authDomain: "fishy-e8ba3.firebaseapp.com",
+    databaseURL: "https://fishy-e8ba3-default-rtdb.firebaseio.com",
+    projectId: "fishy-e8ba3",
+    storageBucket: "fishy-e8ba3.firebasestorage.app",
+    messagingSenderId: "263182050564",
+    appId: "1:263182050564:web:59d70499ccb25c38089c51"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const COOLDOWN_MS = 1 * 60 * 60 * 1000; // keep in sync with index.html
+  const MAX_CASTS = 30;
+
+  let rows = [];
+  let sortKey = "fishyCoins";
+  let sortDir = "desc";
+
+  const tbody = document.getElementById('table-body');
+  const searchInput = document.getElementById('search');
+
+  function fmtNum(n) {
+    if (n === null || n === undefined) return "0";
+    return Number(n).toLocaleString('en-US');
+  }
+
+  function shortWallet(addr) {
+    if (!addr) return null;
+    if (addr.length <= 14) return addr;
+    return addr.slice(0, 6) + '…' + addr.slice(-4);
+  }
+
+  function castStatus(row) {
+    if (row.castCycleStart && row.castCount >= MAX_CASTS) {
+      const remaining = (row.castCycleStart + COOLDOWN_MS) - Date.now();
+      if (remaining > 0) {
+        const mins = Math.ceil(remaining / 60000);
+        return { locked: true, label: `Locked (${mins}m)` };
+      }
+    }
+    return { locked: false, label: `${row.castCount || 0}/${MAX_CASTS} casts` };
+  }
+
+  async function loadData() {
+    tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading players…</td></tr>';
+    const snap = await get(ref(db, 'users'));
+    const data = snap.exists() ? snap.val() : {};
+
+    rows = Object.keys(data).map(function(userId) {
+      const u = data[userId] || {};
+      return {
+        userId: userId,
+        walletAddress: u.walletAddress || null,
+        gameCoins: u.gameCoins || 0,
+        playSeconds: u.playSeconds || 0,
+        streakCount: u.streakCount || 0,
+        fishyCoins: u.fishyCoins || 0,
+        referralCount: u.referralCount || 0,
+        referredBy: u.referredBy || null,
+        castCount: u.castCount || 0,
+        castCycleStart: u.castCycleStart || 0
+      };
+    });
+
+    updateStats();
+    render();
+  }
+
+  function updateStats() {
+    document.getElementById('stat-users').textContent = fmtNum(rows.length);
+    document.getElementById('stat-wallets').textContent = fmtNum(rows.filter(r => r.walletAddress).length);
+    document.getElementById('stat-points').textContent = fmtNum(Math.round(rows.reduce((s, r) => s + (r.playSeconds || 0), 0) / 60));
+    document.getElementById('stat-fishy').textContent = fmtNum(rows.reduce((s, r) => s + (r.fishyCoins || 0), 0));
+    document.getElementById('stat-referrals').textContent = fmtNum(rows.reduce((s, r) => s + (r.referralCount || 0), 0));
+  }
+
+  function sortedFilteredRows() {
+    const q = searchInput.value.trim().toLowerCase();
+    let list = rows;
+    if (q) {
+      list = list.filter(function(r) {
+        return String(r.userId).toLowerCase().includes(q) ||
+               (r.walletAddress || '').toLowerCase().includes(q);
+      });
+    }
+    list = list.slice().sort(function(a, b) {
+      let av = a[sortKey], bv = b[sortKey];
+      if (sortKey === 'walletAddress' || sortKey === 'referredBy') {
+        av = av || ''; bv = bv || '';
+        return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+      }
+      if (sortKey === 'userId') {
+        return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+      }
+      av = Number(av) || 0; bv = Number(bv) || 0;
+      return sortDir === 'asc' ? av - bv : bv - av;
+    });
+    return list;
+  }
+
+  function render() {
+    const list = sortedFilteredRows();
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="empty">No players match this search.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function(r) {
+      const status = castStatus(r);
+      const walletDisplay = r.walletAddress
+        ? `<span class="mono" title="${r.walletAddress}">${shortWallet(r.walletAddress)}</span>
+           <button class="copy-wallet-btn" data-address="${r.walletAddress}" title="Copy wallet address">📋</button>`
+        : `<span class="wallet none">not connected</span>`;
+      return `
+        <tr>
+          <td class="mono">${r.userId}</td>
+          <td class="wallet">${walletDisplay}</td>
+          <td class="mono">${fmtNum(r.gameCoins)}</td>
+          <td class="mono">${fmtNum(Math.round((r.playSeconds || 0) / 60))}m</td>
+          <td class="mono">${fmtNum(r.streakCount)}</td>
+          <td class="mono" style="color: var(--accent); font-weight: 700;">${fmtNum(r.fishyCoins)}</td>
+          <td class="mono">${fmtNum(r.referralCount)}</td>
+          <td class="mono">${r.referredBy ? r.referredBy : '—'}</td>
+          <td><span class="badge ${status.locked ? 'locked' : 'open'}">${status.label}</span></td>
+        </tr>`;
+    }).join('');
+
+    document.querySelectorAll('thead th').forEach(function(th) {
+      th.classList.toggle('active', th.dataset.key === sortKey);
+    });
+  }
+
+  function exportCsv() {
+    const list = sortedFilteredRows();
+    const header = ['Telegram ID', 'TON Wallet', 'Game Coins', 'Play Minutes', 'Streak', 'Fishy', 'Invites', 'Invited By', 'Cast Count', 'Cast Cycle Start'];
+    const lines = [header.join(',')];
+    list.forEach(function(r) {
+      lines.push([
+        r.userId,
+        r.walletAddress || '',
+        r.gameCoins,
+        Math.round((r.playSeconds || 0) / 60),
+        r.streakCount,
+        r.fishyCoins,
+        r.referralCount,
+        r.referredBy || '',
+        r.castCount,
+        r.castCycleStart || ''
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fishy-players-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  document.querySelectorAll('thead th').forEach(function(th) {
+    th.addEventListener('click', function() {
+      const key = th.dataset.key;
+      if (sortKey === key) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortKey = key;
+        sortDir = key === 'userId' || key === 'walletAddress' ? 'asc' : 'desc';
+      }
+      render();
+    });
+  });
+
+  searchInput.addEventListener('input', render);
+  document.getElementById('refresh-btn').addEventListener('click', loadData);
+  document.getElementById('export-btn').addEventListener('click', exportCsv);
+
+  tbody.addEventListener('click', function(e) {
+    const btn = e.target.closest('.copy-wallet-btn');
+    if (!btn) return;
+    const address = btn.dataset.address;
+    function markCopied() {
+      const original = btn.textContent;
+      btn.textContent = '✓';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = original;
+        btn.classList.remove('copied');
+      }, 1200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(address).then(markCopied).catch(function() {
+        fallbackCopy(address, markCopied);
+      });
+    } else {
+      fallbackCopy(address, markCopied);
+    }
+  });
+
+  function fallbackCopy(text, onDone) {
+    const temp = document.createElement('textarea');
+    temp.value = text;
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand('copy');
+    document.body.removeChild(temp);
+    onDone();
+  }
+
+  loadData();
+</script>
+
+</div> <!-- /#dashboard-content -->
+
+</body>
+</html>
